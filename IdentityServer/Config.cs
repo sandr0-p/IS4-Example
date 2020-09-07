@@ -3,8 +3,14 @@
 
 
 using IdentityServer4;
+using IdentityServer4.EntityFramework.DbContexts;
+using IdentityServer4.EntityFramework.Mappers;
 using IdentityServer4.Models;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace IdentityServer
 {
@@ -47,5 +53,43 @@ namespace IdentityServer
                     }
                 }
             };
+
+        public static void InitializeDatabase(IApplicationBuilder app)
+        {
+            using (IServiceScope serviceScope = app.ApplicationServices.GetService<IServiceScopeFactory>().CreateScope())
+            {
+                serviceScope.ServiceProvider.GetRequiredService<PersistedGrantDbContext>().Database.Migrate();
+
+                ConfigurationDbContext context = serviceScope.ServiceProvider.GetRequiredService<ConfigurationDbContext>();
+                context.Database.Migrate();
+
+                if (!context.Clients.Any())
+                {
+                    foreach (Client item in Config.Clients)
+                    {
+                        context.Clients.Add(item.ToEntity());
+                    }
+                    context.SaveChanges();
+                }
+
+                if (!context.IdentityResources.Any())
+                {
+                    foreach (IdentityResource item in Config.IdentityResources)
+                    {
+                        context.IdentityResources.Add(item.ToEntity());
+                    }
+                    context.SaveChanges();
+                }
+
+                if (!context.ApiScopes.Any())
+                {
+                    foreach (ApiScope item in Config.ApiScopes)
+                    {
+                        context.ApiScopes.Add(item.ToEntity());
+                    }
+                    context.SaveChanges();
+                }
+            }
+        }
     }
 }

@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.EntityFrameworkCore;
+using System.Reflection;
 
 namespace IdentityServer
 {
@@ -24,15 +26,23 @@ namespace IdentityServer
             // uncomment, if you want to add an MVC-based UI
             services.AddControllersWithViews();
 
+            string migrationsAssembly = typeof(Startup).GetTypeInfo().Assembly.GetName().Name;
+            string connectionString = @"Server=CTXDEVP0994\SQLEXPRESS;Database=flx_IS4_Auth;User ID=sa;Password=Pa$$w0rd";
+
             var builder = services.AddIdentityServer(options =>
             {
                 // see https://identityserver4.readthedocs.io/en/latest/topics/resources.html
                 options.EmitStaticAudienceClaim = true;
             })
-                .AddInMemoryIdentityResources(Config.IdentityResources)
-                .AddInMemoryApiScopes(Config.ApiScopes)
-                .AddInMemoryClients(Config.Clients)
-                .AddTestUsers(TestUsers.Users);
+                .AddTestUsers(TestUsers.Users)
+                .AddConfigurationStore(options =>
+                {
+                    options.ConfigureDbContext = b => b.UseSqlServer(connectionString, sql => sql.MigrationsAssembly(migrationsAssembly));
+                })
+                .AddOperationalStore(options =>
+                {
+                    options.ConfigureDbContext = b => b.UseSqlServer(connectionString, sql => sql.MigrationsAssembly(migrationsAssembly));
+                });
 
             // not recommended for production - you need to store your key material somewhere secure
             builder.AddDeveloperSigningCredential();
